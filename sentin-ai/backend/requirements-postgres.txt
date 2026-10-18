@@ -1,0 +1,3 @@
+-r requirements.txt
+# PostgreSQL driver for DATABASE_URL=postgresql+psycopg://...
+psycopg[binary]==3.2.9

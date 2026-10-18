@@ -1,0 +1,58 @@
+# Production-style topology: PostgreSQL + API + separate evaluation worker + Next.js frontend.
+# Only the frontend is published; /api is proxied internally to the backend.
+#   JWT_SECRET=$(openssl rand -hex 32) ADMIN_PASSWORD='change-me-now-123' docker compose up --build
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: sentin
+      POSTGRES_USER: sentin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sentin-dev-only}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sentin -d sentin"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: ./backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SENTIN_ENV: production
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET (>= 32 chars)}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD for the first admin}
+      DATABASE_URL: postgresql+psycopg://sentin:${POSTGRES_PASSWORD:-sentin-dev-only}@postgres:5432/sentin
+      WORKER_EMBEDDED: "false"
+      ENABLE_DEMO_TARGETS: "false"
+      SEED_DEMO_DATA: "false"
+      CORS_ORIGINS: http://localhost:3000
+    expose: ["8000"]
+
+  worker:
+    build: ./backend
+    command: ["python", "-m", "app.worker"]
+    depends_on:
+      api:
+        condition: service_started
+    environment:
+      SENTIN_ENV: production
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET (>= 32 chars)}
+      DATABASE_URL: postgresql+psycopg://sentin:${POSTGRES_PASSWORD:-sentin-dev-only}@postgres:5432/sentin
+      WORKER_EMBEDDED: "false"
+    deploy:
+      replicas: 2
+
+  frontend:
+    build: ./frontend
+    depends_on: [api]
+    environment:
+      BACKEND_URL: http://api:8000
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:

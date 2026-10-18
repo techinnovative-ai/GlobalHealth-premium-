@@ -1,0 +1,22 @@
+# Python
+backend/.venv/
+backend/__pycache__/
+**/__pycache__/
+backend/.pytest_cache/
+backend/data/
+*.db
+*.db-wal
+*.db-shm
+
+# Node
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
+
+# Secrets & logs
+.env
+.env.*
+!.env.example
+*.log
